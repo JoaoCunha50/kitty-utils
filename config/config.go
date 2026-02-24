@@ -21,3 +21,17 @@ func ResolveKittyConfigDir() (string, error) {
 
 	return filepath.Join(home, ".config", "kitty"), nil
 }
+
+func ExpandPath(file string) (string, error) {
+	if file == "" {
+		return file, nil
+	}
+	if filepath.IsAbs(file) {
+		return file, nil
+	}
+	dir, err := ResolveKittyConfigDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, file), nil
+}

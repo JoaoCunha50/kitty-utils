@@ -1,6 +1,6 @@
 ### Kitty-Resurrecter
 
-Auto-saves the current Kitty session when windows/tabs change.
+Auto-saves the current Kitty session when windows/tab_change.
 
 Setup
 - Add a listener socket in `kitty.conf`:
@@ -32,4 +32,4 @@ def on_set_tab_title(boss: Any, tab: Any, data: Dict[str, Any]) -> None:
 ```
 
 Run
-- `KITTY_LISTEN_ON=unix:'socket_name' (or don't set the variable if the socket is @mykitty, and just run) go run ./cmd/kitty-resurrect`
+- `go run ./cmd/kitty-resurrect -socket unix:@mykitty`

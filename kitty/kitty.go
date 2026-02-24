@@ -2,10 +2,12 @@ package kitty
 
 import (
 	"encoding/json"
+	"errors"
 	"log/slog"
+	"os"
 	"os/exec"
 
-	"../models"
+	"github.com/JoaoCunha50/kitty-utils/models"
 )
 
 type KittyInstance interface {
@@ -23,6 +25,15 @@ func NewKittyClient(socket string) *KittyClient {
 }
 
 func (k *KittyClient) GetState() ([]models.OSWindow, error) {
+	if k.Socket != "" {
+		if _, err := os.Stat(k.Socket); err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				return []models.OSWindow{}, errors.New("socket does not exist: " + k.Socket)
+			}
+			return []models.OSWindow{}, err
+		}
+	}
+
 	cmd := exec.Command("kitty", "@", "ls")
 	output, err := cmd.Output()
 	if err != nil {

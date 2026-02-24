@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"../config"
-	"../kitty"
-	"../models"
+	"github.com/JoaoCunha50/kitty-utils/config"
+	"github.com/JoaoCunha50/kitty-utils/kitty"
+	"github.com/JoaoCunha50/kitty-utils/models"
 )
 
 type Resurrecter struct {
@@ -35,7 +35,7 @@ func NewResurrecter(kitty kitty.KittyInstance) *Resurrecter {
 	return &Resurrecter{
 		Kitty:      kitty,
 		configDir:  configDir,
-		outputFile: filepath.Join(configDir, "kitty-session.kitty"),
+		outputFile: filepath.Join(configDir, "kitty-session.conf"),
 	}
 }
 
@@ -75,7 +75,7 @@ func (r *Resurrecter) Listen() {
 }
 
 func (r *Resurrecter) SaveSession() error {
-	outputFile, err := r.expandPath(r.outputFile)
+	outputFile, err := config.ExpandPath(r.outputFile)
 	if err != nil {
 		return err
 	}
@@ -121,17 +121,4 @@ func (r *Resurrecter) formatToConfig(windows []models.OSWindow) string {
 	}
 
 	return buffer.String()
-}
-
-func (r *Resurrecter) expandPath(file string) (string, error) {
-	if file == "" {
-		return file, nil
-	}
-	if filepath.IsAbs(file) {
-		return file, nil
-	}
-	if r.configDir != "" {
-		return filepath.Join(r.configDir, file), nil
-	}
-	return file, nil
 }
