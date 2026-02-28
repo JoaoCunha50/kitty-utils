@@ -2,9 +2,7 @@ package kitty
 
 import (
 	"encoding/json"
-	"errors"
 	"log/slog"
-	"os"
 	"os/exec"
 
 	"github.com/JoaoCunha50/kitty-utils/models"
@@ -25,26 +23,24 @@ func NewKittyClient(socket string) *KittyClient {
 }
 
 func (k *KittyClient) GetState() ([]models.OSWindow, error) {
+	var cmd *exec.Cmd
+	args := []string{"@", "ls"}
 	if k.Socket != "" {
-		if _, err := os.Stat(k.Socket); err != nil {
-			if errors.Is(err, os.ErrNotExist) {
-				return []models.OSWindow{}, errors.New("socket does not exist: " + k.Socket)
-			}
-			return []models.OSWindow{}, err
-		}
+		args = []string{"@", "--to", k.Socket, "ls"}
 	}
+	cmd = exec.Command("kitty", args...)
 
-	cmd := exec.Command("kitty", "@", "ls")
 	output, err := cmd.Output()
 	if err != nil {
+		slog.Error("kitty ls", "output", string(output))
 		slog.Error("Failed to get state", "error", err)
-		return []models.OSWindow{}, err
+		return nil, err
 	}
 
 	var windows []models.OSWindow
 	if err := json.Unmarshal(output, &windows); err != nil {
 		slog.Error("Failed to parse kitty state", "error", err)
-		return []models.OSWindow{}, err
+		return nil, err
 	}
 
 	return windows, nil

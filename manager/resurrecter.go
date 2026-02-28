@@ -7,6 +7,8 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/JoaoCunha50/kitty-utils/config"
@@ -15,9 +17,10 @@ import (
 )
 
 type Resurrecter struct {
-	Kitty      kitty.KittyInstance
-	configDir  string
-	outputFile string
+	configDir     string
+	outputFile    string
+	activeSockets map[string]struct{}
+	mu            sync.Mutex
 }
 
 type ResurrecterInterface interface {
@@ -26,16 +29,16 @@ type ResurrecterInterface interface {
 	formatToConfig([]models.OSWindow)
 }
 
-func NewResurrecter(kitty kitty.KittyInstance) *Resurrecter {
+func NewResurrecter() *Resurrecter {
 	configDir, err := config.ResolveKittyConfigDir()
 	if err != nil {
 		configDir = ""
 	}
 
 	return &Resurrecter{
-		Kitty:      kitty,
-		configDir:  configDir,
-		outputFile: filepath.Join(configDir, "kitty-session.conf"),
+		configDir:     configDir,
+		outputFile:    filepath.Join(configDir, "kitty-session.conf"),
+		activeSockets: make(map[string]struct{}),
 	}
 }
 
@@ -57,9 +60,18 @@ func (r *Resurrecter) Listen() {
 	buffer := make([]byte, 1024)
 
 	for {
-		_, _, err := conn.ReadFromUDP(buffer)
+		n, _, err := conn.ReadFromUDP(buffer)
 		if err != nil {
+			slog.Error("Failed to read from UDP", "error", err)
 			continue
+		}
+
+		socket := strings.TrimSpace(string(buffer[:n]))
+		if socket != "" {
+			r.mu.Lock()
+			r.activeSockets[socket] = struct{}{}
+			r.mu.Unlock()
+			slog.Info("Registered socket", "socket", socket)
 		}
 
 		if debounceTimer != nil {
@@ -84,12 +96,33 @@ func (r *Resurrecter) SaveSession() error {
 		return err
 	}
 
-	state, err := r.Kitty.GetState()
-	if err != nil {
-		return err
+	r.mu.Lock()
+	sockets := make([]string, 0, len(r.activeSockets))
+	for s := range r.activeSockets {
+		sockets = append(sockets, s)
+	}
+	r.mu.Unlock()
+
+	var allWindows []models.OSWindow
+	for _, socket := range sockets {
+		client := kitty.NewKittyClient(socket)
+		windows, err := client.GetState()
+		if err != nil {
+			r.mu.Lock()
+			delete(r.activeSockets, socket)
+			r.mu.Unlock()
+			slog.Warn("Socket unavailable, removing", "socket", socket, "error", err)
+			continue
+		}
+		allWindows = append(allWindows, windows...)
 	}
 
-	content := r.formatToConfig(state)
+	if len(allWindows) == 0 {
+		return fmt.Errorf("no windows found")
+	}
+
+	content := r.formatToConfig(allWindows)
+	slog.Info("Saving session...", "file", outputFile, "windows", len(allWindows))
 	return os.WriteFile(outputFile, []byte(content), 0644)
 }
 
@@ -97,8 +130,10 @@ func (r *Resurrecter) formatToConfig(windows []models.OSWindow) string {
 	var buffer bytes.Buffer
 
 	for _, osWindow := range windows {
-		buffer.WriteString("new_os_window\n")
-		buffer.WriteString("os_window_state normal\n\n")
+		if len(windows) > 1 {
+			buffer.WriteString("new_os_window\n")
+			buffer.WriteString("os_window_state normal\n\n")
+		}
 
 		for _, tab := range osWindow.Tabs {
 			if len(tab.Windows) == 0 {
