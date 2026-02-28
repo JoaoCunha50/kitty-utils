@@ -114,18 +114,16 @@ kitty @ load-session ~/.config/kitty/kitty-session.conf
 
 ## Ficheiros Gerados
 
-- **Sessão guardada**: `~/.config/kitty/kitty-session.conf`
-- **Binário**: `~/.config/kitty/kitty-utils/kitty-resurrect`
+- **Loaded Session**: `~/.config/kitty/kitty-session.conf`
+- **Binary**: `~/.config/kitty/kitty-utils/kitty-resurrect`
 - **Watcher**: `~/.config/kitty/kitty-utils/watcher.py`
 - **Logs**: `~/.config/kitty/kitty-utils/logs/`
 
-## Callbacks do Watcher
-
-O `watcher.py` atualmente suporta os seguintes callbacks:
+## Watcher Callbacks
 
 | Callback | Descrição |
 |----------|-----------|
-| `on_window_created` | Quando uma janela é criada |
-| `on_window_closed` | Quando uma janela é fechada |
-| `on_focus_change` | Quando o foco muda |
-| `on_title_change` | Quando o título de um tab é alterado |
+| `on_window_created` | When a window is created |
+| `on_window_closed` | When a window is closed |
+| `on_focus_change` | When the focus changes between windows |
+| `on_title_change` | When the kitty window title is changed |
