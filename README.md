@@ -90,13 +90,13 @@ systemctl --user status kitty-resurrect
 ### View logs
 
 ```bash
-# Logs do daemon
+# Daemon logs
 journalctl --user -u kitty-resurrect -f
 
-# Logs do watcher (em)
+# Watcher logs
 tail -f ~/.config/kitty/kitty-utils/logs/watcher.log
 
-# Logs do resurrecter
+# Resurrecter logs
 tail -f ~/.config/kitty/kitty-utils/logs/kitty-resurrecter.log
 ```
 
@@ -128,4 +128,4 @@ O `watcher.py` atualmente suporta os seguintes callbacks:
 | `on_window_created` | Quando uma janela é criada |
 | `on_window_closed` | Quando uma janela é fechada |
 | `on_focus_change` | Quando o foco muda |
-| `on_set_tab_title` | Quando o título de um tab é alterado |
+| `on_title_change` | Quando o título de um tab é alterado |
