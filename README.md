@@ -2,7 +2,7 @@
 
 Auto-saves the current Kitty session when windows/tabs change.
 
-## Arquitetura
+## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -26,11 +26,17 @@ Auto-saves the current Kitty session when windows/tabs change.
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+## Platforms
+
+- Linux
+- macOS
+
 ## Dependencies
 
 - **Go** 1.25.0 or compatible
 - **Kitty** terminal with remote control enabled
-- **Systemd**
+- **Linux**: Systemd
+- **macOS**: launchd
 
 ## Installation
 

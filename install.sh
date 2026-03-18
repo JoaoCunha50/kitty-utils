@@ -26,13 +26,53 @@ go build -o "$KITTY_UTILS_DIR/kitty-resurrect" "$SCRIPT_DIR/cmd/kitty-resurrect"
 echo "Copying watcher.py..."
 cp "$SCRIPT_DIR/watcher.py" "$KITTY_UTILS_DIR/watcher.py"
 
-SYSTEMD_DIR="$HOME/.config/systemd/user"
-mkdir -p "$SYSTEMD_DIR"
+if [[ "$(uname -s)" == "Darwin" ]]; then
+    LAUNCH_AGENTS_DIR="$HOME/Library/LaunchAgents"
+    mkdir -p "$LAUNCH_AGENTS_DIR"
 
-echo "👾 A configurar o daemon no Systemd..."
-mkdir -p ~/.config/systemd/user/
+    echo "👾 A configurar o daemon no launchd..."
+    cat <<EOF > "$LAUNCH_AGENTS_DIR/kitty-resurrect.plist"
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>kitty-resurrect</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>$KITTY_UTILS_DIR/kitty-resurrect</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <key>HOME</key>
+        <string>$HOME</string>
+        <key>XDG_CONFIG_HOME</key>
+        <string>$XDG_CONFIG_HOME</string>
+        <key>KITTY_CONFIG_DIRECTORY</key>
+        <string>$KITTY_CONFIG_DIR</string>
+    </dict>
+</dict>
+</plist>
+EOF
 
-cat <<EOF > ~/.config/systemd/user/kitty-resurrect.service
+    launchctl load -w "$LAUNCH_AGENTS_DIR/kitty-resurrect.plist"
+    launchctl start kitty-resurrect
+
+    SERVICE_INFO="LaunchAgent: $LAUNCH_AGENTS_DIR/kitty-resurrect.plist"
+else
+    SYSTEMD_DIR="$HOME/.config/systemd/user"
+    mkdir -p "$SYSTEMD_DIR"
+
+    echo "👾 A configurar o daemon no Systemd..."
+    mkdir -p "$SYSTEMD_DIR"
+
+    cat <<EOF > "$SYSTEMD_DIR/kitty-resurrect.service"
 [Unit]
 Description=Kitty Auto Sessionizer Daemon
 After=network.target
@@ -51,8 +91,11 @@ RestartSec=3
 WantedBy=default.target
 EOF
 
-systemctl --user daemon-reload
-systemctl --user enable --now kitty-resurrect.service
+    systemctl --user daemon-reload
+    systemctl --user enable --now kitty-resurrect.service
+
+    SERVICE_INFO="Systemd service: $SYSTEMD_DIR/kitty-resurrect.service"
+fi
 
 echo "Updating kitty.conf..."
 KITTY_CONF="$KITTY_CONFIG_DIR/kitty.conf"
@@ -73,4 +116,4 @@ echo ""
 echo "Installation complete!"
 echo ""
 echo "Files installed to: $KITTY_UTILS_DIR"
-echo "Systemd service: $SYSTEMD_DIR/kitty-resurrect.service"
+echo "$SERVICE_INFO"
