@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/JoaoCunha50/kitty-utils/config"
+	"github.com/JoaoCunha50/kitty-utils/kitty"
 	"github.com/JoaoCunha50/kitty-utils/manager"
 )
 
@@ -35,6 +36,12 @@ func main() {
 	defer file.Close()
 
 	slog.SetDefault(slog.New(handler))
+
+	if kittyPath, err := kitty.ResolveKittyPath(); err != nil {
+		slog.Error("Kitty binary not found", "error", err)
+	} else {
+		slog.Info("Kitty binary resolved", "path", kittyPath)
+	}
 
 	resurrecter := manager.NewResurrecter()
 	resurrecter.Listen()

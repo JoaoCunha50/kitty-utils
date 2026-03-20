@@ -52,7 +52,7 @@ This script:
 3. Creates the Systemd service
 4. Adds the necessary lines to the `kitty.conf`:
    - `allow_remote_control yes`
-   - `listen_on unix:@mykitty`
+   - `listen_on unix:/tmp/mykitty` (macOS) or `listen_on unix:@mykitty` (Linux)
    - `watcher ~/.config/kitty/kitty-utils/watcher.py`
 
 ### Option 2: Manual
@@ -70,9 +70,11 @@ This script:
 3. **Configure the kitty.conf:**
    ```kitty
    allow_remote_control yes
-   listen_on unix:@mykitty
+   listen_on unix:/tmp/mykitty
    watcher ~/.config/kitty/kitty-utils/watcher.py
    ```
+
+   > **Note:** On Linux, use `listen_on unix:@mykitty` (abstract socket). On macOS, use `listen_on unix:/tmp/mykitty` (file-based socket).
 
 4. **Start the daemon:**
    ```bash

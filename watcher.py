@@ -18,8 +18,12 @@ def notify_go_daemon(boss):
     try:
         socket_addr = getattr(boss, 'listening_on', '')
         if not socket_addr:
-            logger.warning("No socket address found on boss")
+            logger.warning(
+                "No socket address found on boss. "
+                "Ensure 'listen_on' is set in kitty.conf and restart kitty."
+            )
             return
+        logger.debug(f"Sending socket address: {socket_addr}")
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.sendto(socket_addr.encode(), ("127.0.0.1", 11223))
         sock.close()

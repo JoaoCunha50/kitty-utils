@@ -20,6 +20,28 @@ KITTY_LOGS_DIR="$KITTY_CONFIG_DIR/kitty-utils/logs"
 mkdir -p "$KITTY_UTILS_DIR"
 mkdir -p "$KITTY_LOGS_DIR"
 
+# Detect kitty binary location
+KITTY_BIN=""
+if command -v kitty &>/dev/null; then
+    KITTY_BIN="$(command -v kitty)"
+elif [[ -x "/Applications/kitty.app/Contents/MacOS/kitty" ]]; then
+    KITTY_BIN="/Applications/kitty.app/Contents/MacOS/kitty"
+fi
+
+if [ -z "$KITTY_BIN" ]; then
+    echo "ERROR: kitty binary not found. Install kitty first or ensure it is in your PATH."
+    exit 1
+fi
+echo "Kitty binary: $KITTY_BIN"
+
+if [[ "$(uname -s)" == "Darwin" ]]; then
+    LISTEN_ON="listen_on unix:/tmp/mykitty"
+    IS_MACOS=true
+else
+    LISTEN_ON="listen_on unix:@mykitty"
+    IS_MACOS=false
+fi
+
 echo "Building kitty-resurrect..."
 go build -o "$KITTY_UTILS_DIR/kitty-resurrect" "$SCRIPT_DIR/cmd/kitty-resurrect"
 
@@ -49,7 +71,9 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
-        <string>$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <string>$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/Applications/kitty.app/Contents/MacOS:/usr/bin:/bin</string>
+        <key>KITTY_PATH</key>
+        <string>$KITTY_BIN</string>
         <key>HOME</key>
         <string>$HOME</string>
         <key>XDG_CONFIG_HOME</key>
@@ -79,10 +103,11 @@ After=network.target
 
 [Service]
 Type=simple
-Environment="PATH=$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="PATH=$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
 Environment="HOME=$HOME"
 Environment="XDG_CONFIG_HOME=$XDG_CONFIG_HOME"
 Environment="KITTY_CONFIG_DIRECTORY=$KITTY_CONFIG_DIR"
+Environment="KITTY_PATH=$KITTY_BIN"
 ExecStart=$KITTY_UTILS_DIR/kitty-resurrect
 Restart=always
 RestartSec=3
@@ -102,8 +127,9 @@ KITTY_CONF="$KITTY_CONFIG_DIR/kitty.conf"
 
 REQUIRED_LINES=(
     "allow_remote_control yes"
-    "listen_on unix:@mykitty"
+    "$LISTEN_ON"
     "watcher $KITTY_UTILS_DIR/watcher.py"
+    "startup_session $KITTY_CONFIG_DIR/kitty-session.conf"
 )
 
 for line in "${REQUIRED_LINES[@]}"; do
@@ -111,6 +137,17 @@ for line in "${REQUIRED_LINES[@]}"; do
         echo "$line" >> "$KITTY_CONF"
     fi
 done
+
+if grep -qF "listen_on" "$KITTY_CONF" 2>/dev/null && ! grep -qF "$LISTEN_ON" "$KITTY_CONF" 2>/dev/null; then
+    if $IS_MACOS && grep -qE '^listen_on\s+unix:@' "$KITTY_CONF" 2>/dev/null; then
+        echo "Migrating 'listen_on' from Linux abstract socket to macOS file-based socket..."
+        sed -i.bak 's|^listen_on\s\+unix:@.*|'"$LISTEN_ON"'|' "$KITTY_CONF"
+        echo "  Replaced with: $LISTEN_ON"
+    else
+        echo "WARNING: Found 'listen_on' in kitty.conf but not set to '$LISTEN_ON'."
+        echo "         The watcher needs this specific socket. Consider updating your kitty.conf."
+    fi
+fi
 
 echo ""
 echo "Installation complete!"

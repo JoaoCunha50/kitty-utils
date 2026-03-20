@@ -2,8 +2,11 @@ package kitty
 
 import (
 	"encoding/json"
+	"fmt"
 	"log/slog"
+	"os"
 	"os/exec"
+	"sync"
 
 	"github.com/JoaoCunha50/kitty-utils/models"
 )
@@ -16,6 +19,29 @@ type KittyClient struct {
 	Socket string
 }
 
+var (
+	kittyPath     string
+	kittyPathErr  error
+	kittyPathOnce sync.Once
+)
+
+func ResolveKittyPath() (string, error) {
+	kittyPathOnce.Do(func() {
+		if p := os.Getenv("KITTY_PATH"); p != "" {
+			kittyPath = p
+			return
+		}
+		kittyPath, kittyPathErr = exec.LookPath("kitty")
+		if kittyPathErr != nil {
+			kittyPathErr = fmt.Errorf(
+				"kitty binary not found: set KITTY_PATH env var or ensure kitty is in PATH: %w",
+				kittyPathErr,
+			)
+		}
+	})
+	return kittyPath, kittyPathErr
+}
+
 func NewKittyClient(socket string) *KittyClient {
 	return &KittyClient{
 		Socket: socket,
@@ -23,12 +49,17 @@ func NewKittyClient(socket string) *KittyClient {
 }
 
 func (k *KittyClient) GetState() ([]models.OSWindow, error) {
+	binPath, err := ResolveKittyPath()
+	if err != nil {
+		return nil, err
+	}
+
 	var cmd *exec.Cmd
 	args := []string{"@", "ls"}
 	if k.Socket != "" {
 		args = []string{"@", "--to", k.Socket, "ls"}
 	}
-	cmd = exec.Command("kitty", args...)
+	cmd = exec.Command(binPath, args...)
 
 	output, err := cmd.Output()
 	if err != nil {
