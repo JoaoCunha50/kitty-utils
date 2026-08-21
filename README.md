@@ -110,17 +110,17 @@ tail -f ~/.config/kitty/kitty-utils/logs/kitty-resurrecter.log
 
 ### Restore a session
 
-(RECOMMENDED) Add to the `kitty.conf`:
+(RECOMMENDED) Add to the `kitty.conf` for it to be automatic:
 ```kitty
 startup_session ~/.config/kitty/kitty-session.conf
 ```
 
-To restore the saved session:
+To manually restore the saved session:
 ```bash
 kitty @ load-session ~/.config/kitty/kitty-session.conf
 ```
 
-## Ficheiros Gerados
+## Generaed Files
 
 - **Loaded Session**: `~/.config/kitty/kitty-session.conf`
 - **Binary**: `~/.config/kitty/kitty-utils/kitty-resurrect`
