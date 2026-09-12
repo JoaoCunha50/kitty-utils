@@ -1,18 +1,17 @@
 package kitty
 
 import (
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"sync"
-
-	"github.com/JoaoCunha50/kitty-utils/models"
 )
 
 type KittyInstance interface {
-	GetState() ([]models.OSWindow, error)
+	SaveSessionTo(path string) error
 }
 
 type KittyClient struct {
@@ -48,31 +47,28 @@ func NewKittyClient(socket string) *KittyClient {
 	}
 }
 
-func (k *KittyClient) GetState() ([]models.OSWindow, error) {
-	binPath, err := ResolveKittyPath()
-	if err != nil {
-		return nil, err
+func (k *KittyClient) SaveSessionTo(path string) error {
+	if !filepath.IsAbs(path) {
+		return fmt.Errorf("session path must be absolute, got %q", path)
 	}
 
-	var cmd *exec.Cmd
-	args := []string{"@", "ls"}
+	if strings.ContainsAny(path, " \t") {
+		return fmt.Errorf("session path must not contain whitespace: %q", path)
+	}
+
+	args := []string{"@"}
+
 	if k.Socket != "" {
-		args = []string{"@", "--to", k.Socket, "ls"}
+		args = append(args, "--to", k.Socket)
 	}
-	cmd = exec.Command(binPath, args...)
+	args = append(args, "action", "save_as_session", "--save-only", path)
 
-	output, err := cmd.Output()
+	cmd := exec.Command("kitty", args...)
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		slog.Error("kitty ls", "output", string(output))
-		slog.Error("Failed to get state", "error", err)
-		return nil, err
+		slog.Error("Failed to save session", "error", err, "output", strings.TrimSpace(string(output)))
+		return err
 	}
 
-	var windows []models.OSWindow
-	if err := json.Unmarshal(output, &windows); err != nil {
-		slog.Error("Failed to parse kitty state", "error", err)
-		return nil, err
-	}
-
-	return windows, nil
+	return nil
 }

@@ -127,7 +127,8 @@ KITTY_CONF="$KITTY_CONFIG_DIR/kitty.conf"
 
 REQUIRED_LINES=(
     "allow_remote_control yes"
-    "$LISTEN_ON"
+    "listen_on unix:@mykitty"
+    "single_instance yes"
     "watcher $KITTY_UTILS_DIR/watcher.py"
     "startup_session $KITTY_CONFIG_DIR/kitty-session.conf"
 )

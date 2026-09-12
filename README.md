@@ -9,10 +9,10 @@ Auto-saves the current Kitty session when windows/tabs change.
 │  Kitty Terminal                                                 │
 │  ┌──────────────────────┐                                       │
 │  │ watcher.py           │                                       │
-│  │ - on_window_created  │                                       │
-│  │ - on_window_closed   │                                       │
+│  │ - on_load            │                                       │
+│  │ - on_close           │                                       │
 │  │ - on_focus_change    │                                       │
-│  │ - on_set_tab_title   │                                       │
+│  │ - on_title_change    │                                       │
 │  └──────────────────────┘                                       │
 └─────────────────────────────────────────────────────────────────┘
                               │
@@ -22,7 +22,8 @@ Auto-saves the current Kitty session when windows/tabs change.
 │  kitty-resurrect (Go Daemon)                                    │
 │  - Listens to UDP on port 11223                                 │
 │  - 1 Second Debounce                                            │
-│  - Salva sessão para ~/.config/kitty/kitty-session.conf         │
+│  - Asks kitty to serialize itself:                              │
+│    kitty @ action save_as_session --save-only <file>            │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -34,7 +35,9 @@ Auto-saves the current Kitty session when windows/tabs change.
 ## Dependencies
 
 - **Go** 1.25.0 or compatible
-- **Kitty** terminal with remote control enabled
+- **Kitty** 0.48 or newer, with remote control enabled. The daemon relies on
+  kitty's `save_as_session` action; older versions may not have it, and the
+  daemon will log `Unknown action: save_as_session` if that is the case.
 - **Linux**: Systemd
 - **macOS**: launchd
 
@@ -52,8 +55,16 @@ This script:
 3. Creates the Systemd service
 4. Adds the necessary lines to the `kitty.conf`:
    - `allow_remote_control yes`
-   - `listen_on unix:/tmp/mykitty` (macOS) or `listen_on unix:@mykitty` (Linux)
+   - `listen_on unix:@mykitty`
+   - `single_instance yes`
    - `watcher ~/.config/kitty/kitty-utils/watcher.py`
+
+`single_instance yes` is required, not cosmetic. `startup_session` is applied by
+every kitty instance, so without it each terminal you open restores the whole
+saved session on top of itself and the session file grows every time. With it,
+all terminals share one process: only the first one restores, the rest open
+clean, and the daemon sees a single socket. Use `kitty --instance-group <name>`
+if you deliberately want an isolated kitty.
 
 ### Option 2: Manual
 
@@ -70,7 +81,8 @@ This script:
 3. **Configure the kitty.conf:**
    ```kitty
    allow_remote_control yes
-   listen_on unix:/tmp/mykitty
+   listen_on unix:@mykitty
+   single_instance yes
    watcher ~/.config/kitty/kitty-utils/watcher.py
    ```
 
@@ -129,9 +141,13 @@ kitty @ load-session ~/.config/kitty/kitty-session.conf
 
 ## Watcher Callbacks
 
+These are kitty's real watcher hook names. Note that kitty has no
+window-created hook — a new window taking focus fires `on_focus_change`, which
+covers it.
+
 | Callback | Descrição |
 |----------|-----------|
-| `on_window_created` | When a window is created |
-| `on_window_closed` | When a window is closed |
+| `on_load` | Once per kitty process, when the watcher is loaded. Registers the socket with the daemon. Takes `(boss, data)`, not `(boss, window, data)` |
+| `on_close` | When a window is closed |
 | `on_focus_change` | When the focus changes between windows |
 | `on_title_change` | When the kitty window title is changed |

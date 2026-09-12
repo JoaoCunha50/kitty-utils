@@ -31,10 +31,12 @@ def notify_go_daemon(boss):
         logger.exception(f"Failed to notify daemon: {e}")
 
 
-def on_window_created(boss, window):
+# Called once per kitty process when the watcher module is loaded, so the daemon
+# knows the socket before any window event happens.
+def on_load(boss, data):
     notify_go_daemon(boss)
 
-def on_window_closed(boss, window):
+def on_close(boss, window, data):
     notify_go_daemon(boss)
 
 def on_focus_change(boss, window, data):
